@@ -1,0 +1,15 @@
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# Backend
+ats-backend/target/
+
+# Frontend
+atsFrontend/node_modules/
+atsFrontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
