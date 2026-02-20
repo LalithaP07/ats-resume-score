@@ -7,6 +7,10 @@ import com.itap.ats.repo.ResumeScanRepository;
 import com.itap.ats.service.ScanService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.itap.ats.service.OpenAiClient;
+import com.itap.ats.service.PdfTextExtractor;
+import java.io.InputStream;
+
 
 import java.util.*;
 
@@ -17,10 +21,36 @@ public class ScanController {
     private final ScanService scanService;
     private final ResumeScanRepository repo;
     private final ObjectMapper mapper = new ObjectMapper();
+    private final PdfTextExtractor pdfTextExtractor;
+    private final OpenAiClient openAiClient;
 
-    public ScanController(ScanService scanService, ResumeScanRepository repo) {
+
+    public ScanController(ScanService scanService, ResumeScanRepository repo, PdfTextExtractor pdfTextExtractor, OpenAiClient openAiClient) {
         this.scanService = scanService;
         this.repo = repo;
+        this.pdfTextExtractor = pdfTextExtractor;
+        this.openAiClient = openAiClient;
+    }
+
+    private InputStream toInputStream(MultipartFile f) {
+        try {
+            return f.getInputStream();
+        } catch (Exception e) {
+            throw new RuntimeException("Could not read uploaded file", e);
+        }
+    }
+
+
+    @PostMapping("/ai-suggestions")
+    public com.itap.ats.dto.AiSuggestionsResponse aiSuggestions(
+            @RequestParam("resume") MultipartFile resume,
+            @RequestParam("jobDescription") String jobDescription
+    ) {
+        if (resume == null || resume.isEmpty()) throw new RuntimeException("Resume file is required.");
+        if (jobDescription == null || jobDescription.trim().isEmpty()) throw new RuntimeException("Job description is required.");
+
+        String resumeText = pdfTextExtractor.extractText(toInputStream(resume));
+        return openAiClient.getSuggestions(resumeText, jobDescription);
     }
 
     @PostMapping("/scan")
