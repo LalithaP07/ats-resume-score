@@ -12,7 +12,7 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
-                        .allowedOriginPatterns("*")
+                        .allowedOriginPatterns("https://ats-resume-score-1-de3f.onrender.com")
                         .allowedMethods("GET", "POST", "OPTIONS")
                         .allowedHeaders("*");
             }
