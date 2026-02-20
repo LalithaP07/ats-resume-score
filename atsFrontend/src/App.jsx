@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { runScan, getScans, getScanById } from "./api";
+import { getAiSuggestions } from "./api";
+
 
 function ScorePill({ score }) {
     const label =
@@ -121,6 +123,10 @@ export default function App() {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiError, setAiError] = useState("");
+    const [aiResult, setAiResult] = useState(null);
+
 
     async function loadHistory() {
         const data = await getScans();
@@ -163,6 +169,25 @@ export default function App() {
             setError("Failed to open scan.");
         }
     }
+
+    async function onAiSuggestions() {
+        setAiError("");
+        setAiResult(null);
+
+        if (!resumeFile) return setAiError("Upload a PDF first to generate AI suggestions.");
+        if (!jobDescription.trim()) return setAiError("Paste a job description first.");
+
+        try {
+            setAiLoading(true);
+            const data = await getAiSuggestions(resumeFile, jobDescription);
+            setAiResult(data);
+        } catch (err) {
+            setAiError(err.message || "AI suggestions failed");
+        } finally {
+            setAiLoading(false);
+        }
+    }
+
 
     return (
         <div
@@ -302,6 +327,27 @@ export default function App() {
 
                                     <button
                                         type="button"
+                                        onClick={onAiSuggestions}
+                                        disabled={aiLoading}
+                                        style={{
+                                            cursor: aiLoading ? "not-allowed" : "pointer",
+                                            padding: "10px 14px",
+                                            borderRadius: 14,
+                                            border: "1px solid rgba(255,255,255,0.14)",
+                                            background: aiLoading
+                                                ? "rgba(255,255,255,0.10)"
+                                                : "linear-gradient(90deg, rgba(167,139,250,0.85), rgba(96,165,250,0.75))",
+                                            color: "rgba(10,15,25,0.95)",
+                                            fontWeight: 800,
+                                            fontSize: 14
+                                        }}
+                                    >
+                                        {aiLoading ? "Generating..." : "Generate AI Suggestions"}
+                                    </button>
+
+
+                                    <button
+                                        type="button"
                                         onClick={() => {
                                             setResumeFile(null);
                                             setJobDescription("");
@@ -318,6 +364,8 @@ export default function App() {
                                             fontWeight: 700,
                                             fontSize: 14
                                         }}
+
+
                                     >
                                         Reset
                                     </button>
@@ -442,6 +490,93 @@ export default function App() {
                         </Card>
                     </div>
                 )}
+
+                {(aiError || aiResult) && (
+                    <div style={{ marginTop: 16 }}>
+                        <Card
+                            title="AI Suggestions"
+                            right={
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.60)" }}>
+          Uses resume + JD. No data saved.
+        </span>
+                            }
+                        >
+                            {aiError && (
+                                <div
+                                    style={{
+                                        padding: 12,
+                                        borderRadius: 14,
+                                        border: "1px solid rgba(251,113,133,0.35)",
+                                        background: "rgba(251,113,133,0.10)",
+                                        color: "rgba(255,255,255,0.92)",
+                                        fontSize: 13
+                                    }}
+                                >
+                                    {aiError}
+                                </div>
+                            )}
+
+                            {aiResult && (
+                                <div style={{ display: "grid", gap: 14 }}>
+                                    {aiResult.improvedSummary && (
+                                        <div>
+                                            <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.70)" }}>Improved Summary</div>
+                                            <div style={{ marginTop: 6, color: "rgba(255,255,255,0.90)", lineHeight: 1.6 }}>
+                                                {aiResult.improvedSummary}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {Array.isArray(aiResult.skillsSuggestions) && aiResult.skillsSuggestions.length > 0 && (
+                                        <div>
+                                            <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.70)" }}>Skills Suggestions</div>
+                                            <ul style={{ marginTop: 8, paddingLeft: 18, color: "rgba(255,255,255,0.85)", lineHeight: 1.7 }}>
+                                                {aiResult.skillsSuggestions.map((x, i) => <li key={i}>{x}</li>)}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {Array.isArray(aiResult.rewrittenExperienceBullets) && aiResult.rewrittenExperienceBullets.length > 0 && (
+                                        <div>
+                                            <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.70)" }}>Rewritten Experience Bullets</div>
+                                            <ul style={{ marginTop: 8, paddingLeft: 18, color: "rgba(255,255,255,0.85)", lineHeight: 1.7 }}>
+                                                {aiResult.rewrittenExperienceBullets.map((x, i) => <li key={i}>{x}</li>)}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {Array.isArray(aiResult.projectSuggestions) && aiResult.projectSuggestions.length > 0 && (
+                                        <div>
+                                            <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.70)" }}>Project Suggestions</div>
+                                            <ul style={{ marginTop: 8, paddingLeft: 18, color: "rgba(255,255,255,0.85)", lineHeight: 1.7 }}>
+                                                {aiResult.projectSuggestions.map((x, i) => <li key={i}>{x}</li>)}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {Array.isArray(aiResult.keywordPlacementTips) && aiResult.keywordPlacementTips.length > 0 && (
+                                        <div>
+                                            <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.70)" }}>Keyword Placement Tips</div>
+                                            <ul style={{ marginTop: 8, paddingLeft: 18, color: "rgba(255,255,255,0.85)", lineHeight: 1.7 }}>
+                                                {aiResult.keywordPlacementTips.map((x, i) => <li key={i}>{x}</li>)}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {Array.isArray(aiResult.atsWarnings) && aiResult.atsWarnings.length > 0 && (
+                                        <div>
+                                            <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.70)" }}>ATS Warnings</div>
+                                            <ul style={{ marginTop: 8, paddingLeft: 18, color: "rgba(255,255,255,0.85)", lineHeight: 1.7 }}>
+                                                {aiResult.atsWarnings.map((x, i) => <li key={i}>{x}</li>)}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </Card>
+                    </div>
+                )}
+
 
                 {/* History */}
                 <div style={{ marginTop: 16 }}>
